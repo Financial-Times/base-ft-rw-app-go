@@ -13,5 +13,6 @@ type Service interface {
 	Delete(uuid string) (found bool, err error)
 	DecodeJSON(*json.Decoder) (thing interface{}, identity string, err error)
 	Count() (int, error)
-	Check() (check v1a.Check)
+	Check() (check v1a.Check) //TODO change this
+	Initialise() error
 }
