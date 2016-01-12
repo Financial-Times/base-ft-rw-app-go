@@ -44,7 +44,10 @@ func RunServer(engs map[string]Service, serviceName string, serviceDescription s
 	}
 
 	m.HandleFunc("/__health", v1a.Handler(serviceName, serviceDescription, checks...))
+	// The top one of these feels more correct, but the lower one matches what we have in Dropwizard,
+	// so it's what apps expect currently
 	m.HandleFunc("/__ping", pingHandler)
+	m.HandleFunc("/ping", pingHandler)
 
 	go func() {
 		log.Printf("listening on %d", port)
