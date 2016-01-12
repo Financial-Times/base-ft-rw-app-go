@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"time"
 
 	"github.com/Financial-Times/go-fthealth/v1a"
@@ -25,7 +24,12 @@ import (
 // Endpoints are wrapped in a metrics timer and request loggin including transactionID, which is generated
 // if not found on the request as X-Request-Id header
 func RunServer(engs map[string]Service, serviceName string, serviceDescription string, port int) {
-	//TODO work out how to supply the v1a.Handler as a parameter (so can have several checks)
+	for path, eng := range engs {
+		err := eng.Initialise()
+		if err != nil {
+			log.Fatalf("Eng for path %s could not startup, err=%s", path, err)
+		}
+	}
 
 	m := mux.NewRouter()
 	http.Handle("/", m)
@@ -49,15 +53,8 @@ func RunServer(engs map[string]Service, serviceName string, serviceDescription s
 	m.HandleFunc("/__ping", pingHandler)
 	m.HandleFunc("/ping", pingHandler)
 
-	go func() {
-		log.Printf("listening on %d", port)
-		http.ListenAndServe(fmt.Sprintf(":%d", port), HTTPMetricsHandler(TransactionAwareRequestLoggingHandler(os.Stdout, m)))
-	}()
-
-	// wait for ctrl-c
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	<-c
+	log.Printf("listening on %d", port)
+	http.ListenAndServe(fmt.Sprintf(":%d", port), HTTPMetricsHandler(TransactionAwareRequestLoggingHandler(os.Stdout, m)))
 
 	log.Println("exiting")
 }
