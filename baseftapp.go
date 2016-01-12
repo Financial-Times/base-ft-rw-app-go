@@ -64,7 +64,7 @@ func RunServer(engs map[string]Service, serviceName string, serviceDescription s
 func OutputMetricsIfRequired(graphiteTCPAddress string, graphitePrefix string, logMetrics bool) {
 	if graphiteTCPAddress != "" {
 		addr, _ := net.ResolveTCPAddr("tcp", graphiteTCPAddress)
-		go graphite.Graphite(metrics.DefaultRegistry, 1*time.Minute, graphitePrefix, addr)
+		go graphite.Graphite(metrics.DefaultRegistry, 5*time.Second, graphitePrefix, addr)
 	}
 	if logMetrics { //useful locally
 		//messy use of the 'standard' log package here as this method takes the log struct, not an interface, so can't use logrus.Logger
