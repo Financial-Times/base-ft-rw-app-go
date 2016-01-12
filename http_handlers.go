@@ -85,6 +85,27 @@ func (hh *httpHandlers) getHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (hh *httpHandlers) countHandler(w http.ResponseWriter, r *http.Request) {
+
+	count, err := hh.s.Count()
+
+	w.Header().Add("Content-Type", "application/json")
+
+	if err != nil {
+		log.Errorf("Error on read=%v\n", err)
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
+
+	enc := json.NewEncoder(w)
+
+	if err := enc.Encode(count); err != nil {
+		log.Errorf("Error on json encoding=%v\n", err)
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
+}
+
 func pingHandler(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "pong")
 }
