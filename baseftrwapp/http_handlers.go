@@ -143,6 +143,57 @@ func (hh *httpHandlers) countHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (hh *httpHandlers) idsHandler(w http.ResponseWriter, r *http.Request) {
+
+	idService, ok := hh.s.(rwapi.IDService)
+	if !ok {
+		w.WriteHeader(http.StatusNotImplemented)
+		return
+	}
+
+	ids := make(chan rwapi.IDEntry, 4096)
+	errs := make(chan error)
+
+	stop := make(chan struct{})
+	defer close(stop)
+
+	go func() {
+		idService.IDs(ids, errs, stop)
+		close(ids)
+	}()
+
+	w.Header().Add("Content-Type", "application/json")
+
+	enc := json.NewEncoder(w)
+
+	var err error
+	for err == nil {
+		select {
+		case id, ok := <-ids:
+			if !ok {
+				return
+			}
+			err = enc.Encode(id)
+		case err = <-errs:
+		}
+	}
+
+	log.Errorf(err.Error())
+
+	// at this point, the best we can do is close the connection to inform
+	// the client of the error, because we've already said "200"
+	conn, _, err := w.(http.Hijacker).Hijack()
+	if err != nil {
+		// there is very little we can do here. Since we're in an http
+		// handler, panic is okay. It will be recovered from and will
+		// not crash the application, but at least we will capture the
+		// cause.
+		log.Panicf(err.Error())
+	}
+	conn.Close()
+	return
+}
+
 func pingHandler(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "pong")
 }

@@ -70,6 +70,7 @@ func router(engs map[string]Service, healthHandler func(http.ResponseWriter, *ht
 	for path, eng := range engs {
 		handlers := httpHandlers{eng}
 		m.HandleFunc(fmt.Sprintf("/%s/__count", path), handlers.countHandler).Methods("GET")
+		m.HandleFunc(fmt.Sprintf("/%s/__ids", path), handlers.idsHandler).Methods("GET")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.getHandler).Methods("GET")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.putHandler).Methods("PUT")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.deleteHandler).Methods("DELETE")
