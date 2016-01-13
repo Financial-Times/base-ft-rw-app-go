@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Financial-Times/go-fthealth/v1a"
+	"github.com/Financial-Times/http-handlers-go"
 	log "github.com/Sirupsen/logrus"
 	"github.com/cyberdelia/go-metrics-graphite"
 	"github.com/gorilla/mux"
@@ -36,7 +37,6 @@ func RunServer(engs map[string]Service, serviceName string, serviceDescription s
 
 	for path, eng := range engs {
 		handlers := httpHandlers{eng}
-		m.HandleFunc(fmt.Sprintf("/%s/__count", path), handlers.countHandler).Methods("GET")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.getHandler).Methods("GET")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.putHandler).Methods("PUT")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.deleteHandler).Methods("DELETE")
@@ -55,7 +55,9 @@ func RunServer(engs map[string]Service, serviceName string, serviceDescription s
 	m.HandleFunc("/ping", pingHandler)
 
 	log.Printf("listening on %d", port)
-	http.ListenAndServe(fmt.Sprintf(":%d", port), HTTPMetricsHandler(TransactionAwareRequestLoggingHandler(os.Stdout, m)))
+	http.ListenAndServe(fmt.Sprintf(":%d", port),
+		httphandlers.HTTPMetricsHandler(metrics.DefaultRegistry,
+			httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), m)))
 
 	log.Println("exiting")
 }
