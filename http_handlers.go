@@ -17,23 +17,25 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	uuid := vars["uuid"]
 
+	w.Header().Add("Content-Type", "application/json")
+
 	dec := json.NewDecoder(req.Body)
 	inst, docUUID, err := hh.s.DecodeJSON(dec)
 	if err != nil {
 		log.Errorf("Error on parse=%v\n", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeJsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	if docUUID != uuid {
-		http.Error(w, fmt.Sprintf("uuid does not match: '%v' '%v'", docUUID, uuid), http.StatusBadRequest)
+		writeJsonError(w, fmt.Sprintf("uuid does not match: '%v' '%v'", docUUID, uuid), http.StatusBadRequest)
 		return
 	}
 
 	err = hh.s.Write(inst)
 	if err != nil {
 		log.Errorf("Error on write=%v\n", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeJsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 	//Not necessary for a 200 to be returned, but for PUT requests, if don't specify, don't see 200 status logged in request logs
@@ -47,7 +49,7 @@ func (hh *httpHandlers) deleteHandler(w http.ResponseWriter, req *http.Request) 
 	deleted, err := hh.s.Delete(uuid)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeJsonError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -68,7 +70,7 @@ func (hh *httpHandlers) getHandler(w http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		log.Errorf("Error on read=%v\n", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeJsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 
@@ -80,7 +82,7 @@ func (hh *httpHandlers) getHandler(w http.ResponseWriter, req *http.Request) {
 	enc := json.NewEncoder(w)
 	if err := enc.Encode(obj); err != nil {
 		log.Errorf("Error on json encoding=%v\n", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeJsonError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
@@ -93,7 +95,7 @@ func (hh *httpHandlers) countHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Error on read=%v\n", err)
-		w.WriteHeader(http.StatusServiceUnavailable)
+		writeJsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 
@@ -101,11 +103,16 @@ func (hh *httpHandlers) countHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := enc.Encode(count); err != nil {
 		log.Errorf("Error on json encoding=%v\n", err)
-		w.WriteHeader(http.StatusServiceUnavailable)
+		writeJsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 }
 
 func pingHandler(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "pong")
+}
+
+func writeJsonError(w http.ResponseWriter, errorMsg string, statusCode int) {
+	w.WriteHeader(statusCode)
+	fmt.Fprintln(w, fmt.Sprintf("{\"message\": \"%s\"}", errorMsg))
 }

@@ -24,7 +24,7 @@ import (
 // It will also setup the healthcheck and ping endpoints
 // Endpoints are wrapped in a metrics timer and request loggin including transactionID, which is generated
 // if not found on the request as X-Request-Id header
-func RunServer(engs map[string]Service, serviceName string, serviceDescription string, port int) {
+func RunServer(engs map[string]Service, appName string, appDescription string, port int) {
 	for path, eng := range engs {
 		err := eng.Initialise()
 		if err != nil {
@@ -32,8 +32,20 @@ func RunServer(engs map[string]Service, serviceName string, serviceDescription s
 		}
 	}
 
-	m := mux.NewRouter()
+	m := router(engs, appName, appDescription)
 	http.Handle("/", m)
+
+	log.Printf("listening on %d", port)
+	http.ListenAndServe(fmt.Sprintf(":%d", port),
+		httphandlers.HTTPMetricsHandler(metrics.DefaultRegistry,
+			httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), m)))
+
+	log.Println("exiting")
+}
+
+//Router sets up the Router - extracted for testability
+func router(engs map[string]Service, appName string, appDescription string) *mux.Router {
+	m := mux.NewRouter()
 
 	for path, eng := range engs {
 		handlers := httpHandlers{eng}
@@ -48,18 +60,12 @@ func RunServer(engs map[string]Service, serviceName string, serviceDescription s
 		checks = append(checks, eng.Check())
 	}
 
-	m.HandleFunc("/__health", v1a.Handler(serviceName, serviceDescription, checks...))
+	m.HandleFunc("/__health", v1a.Handler(appName, appDescription, checks...))
 	// The top one of these feels more correct, but the lower one matches what we have in Dropwizard,
 	// so it's what apps expect currently
 	m.HandleFunc("/__ping", pingHandler)
 	m.HandleFunc("/ping", pingHandler)
-
-	log.Printf("listening on %d", port)
-	http.ListenAndServe(fmt.Sprintf(":%d", port),
-		httphandlers.HTTPMetricsHandler(metrics.DefaultRegistry,
-			httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), m)))
-
-	log.Println("exiting")
+	return m
 }
 
 //OutputMetricsIfRequired will send metrics to Graphite if a non-empty graphiteTCPAddress is passed in, or to the standard log if logMetrics is true.
