@@ -8,7 +8,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/Financial-Times/go-fthealth/v1a"
 	"github.com/Financial-Times/http-handlers-go"
 	log "github.com/Sirupsen/logrus"
 	"github.com/cyberdelia/go-metrics-graphite"
@@ -24,7 +23,7 @@ import (
 // It will also setup the healthcheck and ping endpoints
 // Endpoints are wrapped in a metrics timer and request loggin including transactionID, which is generated
 // if not found on the request as X-Request-Id header
-func RunServer(engs map[string]Service, appName string, appDescription string, port int) {
+func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, *http.Request), port int) {
 	for path, eng := range engs {
 		err := eng.Initialise()
 		if err != nil {
@@ -32,7 +31,7 @@ func RunServer(engs map[string]Service, appName string, appDescription string, p
 		}
 	}
 
-	m := router(engs, appName, appDescription)
+	m := router(engs, healthHandler)
 	http.Handle("/", m)
 
 	log.Printf("listening on %d", port)
@@ -44,23 +43,18 @@ func RunServer(engs map[string]Service, appName string, appDescription string, p
 }
 
 //Router sets up the Router - extracted for testability
-func router(engs map[string]Service, appName string, appDescription string) *mux.Router {
+func router(engs map[string]Service, healthHandler func(http.ResponseWriter, *http.Request)) *mux.Router {
 	m := mux.NewRouter()
 
 	for path, eng := range engs {
 		handlers := httpHandlers{eng}
+		m.HandleFunc(fmt.Sprintf("/%s/__count", path), handlers.countHandler).Methods("GET")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.getHandler).Methods("GET")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.putHandler).Methods("PUT")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.deleteHandler).Methods("DELETE")
 	}
 
-	var checks []v1a.Check
-
-	for _, eng := range engs {
-		checks = append(checks, eng.Check())
-	}
-
-	m.HandleFunc("/__health", v1a.Handler(appName, appDescription, checks...))
+	m.HandleFunc("/__health", healthHandler)
 	// The top one of these feels more correct, but the lower one matches what we have in Dropwizard,
 	// so it's what apps expect currently
 	m.HandleFunc("/__ping", pingHandler)
@@ -79,12 +73,4 @@ func OutputMetricsIfRequired(graphiteTCPAddress string, graphitePrefix string, l
 		//messy use of the 'standard' log package here as this method takes the log struct, not an interface, so can't use logrus.Logger
 		go metrics.Log(metrics.DefaultRegistry, 60*time.Second, standardLog.New(os.Stdout, "metrics", standardLog.Lmicroseconds))
 	}
-}
-
-// Healthcheck defines the information needed to set up a healthcheck
-type Healthcheck struct {
-	Name        string
-	Description string
-	Checks      []v1a.Check
-	Parallel    bool
 }

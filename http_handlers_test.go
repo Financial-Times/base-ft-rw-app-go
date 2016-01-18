@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Financial-Times/go-fthealth/v1a"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,7 +31,7 @@ func TestPutHandler(t *testing.T) {
 
 	for _, test := range tests {
 		rec := httptest.NewRecorder()
-		router(test.dummyServices, test.name, test.name).ServeHTTP(rec, test.req)
+		router(test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
 		assert.True(test.statusCode == rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
 		assert.Equal(test.body, rec.Body.String(), fmt.Sprintf("%s: Wrong body", test.name))
 	}
@@ -51,12 +50,56 @@ func TestGetHandler(t *testing.T) {
 		{"Success", newRequest("GET", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID}), http.StatusOK, "", "{}\n"},
 		{"NotFound", newRequest("GET", fmt.Sprintf("/dummies/%s", "99999")), dummyServices(dummyService{uuid: knownUUID}), http.StatusNotFound, "", ""},
 		{"ReadError", newRequest("GET", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failRead: true}), http.StatusServiceUnavailable, "", errorMessage("TEST failing to READ")},
-		//{"EncodeError", newRequest("GET", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID}), http.StatusServiceUnavailable, "", errorMessage("TEST failing to WRITE")},
 	}
 
 	for _, test := range tests {
 		rec := httptest.NewRecorder()
-		router(test.dummyServices, test.name, test.name).ServeHTTP(rec, test.req)
+		router(test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
+		assert.True(test.statusCode == rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
+		assert.Equal(test.body, rec.Body.String(), fmt.Sprintf("%s: Wrong body", test.name))
+	}
+}
+
+func TestDeleteHandler(t *testing.T) {
+	assert := assert.New(t)
+	tests := []struct {
+		name          string
+		req           *http.Request
+		dummyServices map[string]Service
+		statusCode    int
+		contentType   string // Contents of the Content-Type header
+		body          string
+	}{
+		{"Success", newRequest("DELETE", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID}), http.StatusNoContent, "", ""},
+		{"NotFound", newRequest("DELETE", fmt.Sprintf("/dummies/%s", "99999")), dummyServices(dummyService{uuid: knownUUID}), http.StatusNotFound, "", ""},
+		{"DeleteError", newRequest("DELETE", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failDelete: true}), http.StatusServiceUnavailable, "", errorMessage("TEST failing to DELETE")},
+	}
+
+	for _, test := range tests {
+		rec := httptest.NewRecorder()
+		router(test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
+		assert.True(test.statusCode == rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
+		assert.Equal(test.body, rec.Body.String(), fmt.Sprintf("%s: Wrong body", test.name))
+	}
+}
+
+func TestCountHandler(t *testing.T) {
+	assert := assert.New(t)
+	tests := []struct {
+		name          string
+		req           *http.Request
+		dummyServices map[string]Service
+		statusCode    int
+		contentType   string // Contents of the Content-Type header
+		body          string
+	}{
+		{"Success", newRequest("GET", "/dummies/__count"), dummyServices(dummyService{uuid: knownUUID}), http.StatusOK, "", "2\n"},
+		{"CountError", newRequest("GET", "/dummies/__count"), dummyServices(dummyService{uuid: knownUUID, failCount: true}), http.StatusServiceUnavailable, "", errorMessage("TEST failing to COUNT")},
+	}
+
+	for _, test := range tests {
+		rec := httptest.NewRecorder()
+		router(test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
 		assert.True(test.statusCode == rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
 		assert.Equal(test.body, rec.Body.String(), fmt.Sprintf("%s: Wrong body", test.name))
 	}
@@ -84,6 +127,7 @@ type dummyService struct {
 	failWrite  bool
 	failRead   bool
 	failDelete bool
+	failCount  bool
 }
 
 type dummyServiceData struct {
@@ -107,7 +151,13 @@ func (dS dummyService) Read(uuid string) (thing interface{}, found bool, err err
 }
 
 func (dS dummyService) Delete(uuid string) (found bool, err error) {
-	return true, nil
+	if dS.failDelete {
+		return false, errors.New("TEST failing to DELETE")
+	}
+	if uuid == dS.uuid {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (dS dummyService) DecodeJSON(*json.Decoder) (thing interface{}, identity string, err error) {
@@ -118,13 +168,19 @@ func (dS dummyService) DecodeJSON(*json.Decoder) (thing interface{}, identity st
 }
 
 func (dS dummyService) Count() (int, error) {
-	return 0, nil
+	if dS.failCount {
+		return 0, errors.New("TEST failing to COUNT")
+	}
+	return 2, nil
 }
 
-func (dS dummyService) Check() (check v1a.Check) {
-	return v1a.Check{}
+func (dS dummyService) Check() error {
+	return nil
 }
 
 func (dS dummyService) Initialise() error {
 	return nil
+}
+
+func healthHandler(http.ResponseWriter, *http.Request) {
 }

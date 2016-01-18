@@ -49,7 +49,7 @@ func (hh *httpHandlers) deleteHandler(w http.ResponseWriter, req *http.Request) 
 	deleted, err := hh.s.Delete(uuid)
 
 	if err != nil {
-		writeJsonError(w, err.Error(), http.StatusInternalServerError)
+		writeJsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 
