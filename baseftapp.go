@@ -59,6 +59,12 @@ func router(engs map[string]Service, healthHandler func(http.ResponseWriter, *ht
 	// so it's what apps expect currently
 	m.HandleFunc("/__ping", pingHandler)
 	m.HandleFunc("/ping", pingHandler)
+
+	// The top one of these feels more correct, but the lower one matches what we have in Dropwizard,
+	// so it's what apps expect currently same as ping, the content of build-info needs more definition
+	m.HandleFunc("/__build-info", buildInfoHandler)
+	m.HandleFunc("/build-info", buildInfoHandler)
+
 	return m
 }
 

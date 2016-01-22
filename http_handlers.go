@@ -112,6 +112,11 @@ func pingHandler(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "pong")
 }
 
+// buildInfoHandler - This is a stop gap and will be added to when we can define what we should display here
+func buildInfoHandler(w http.ResponseWriter, req *http.Request) {
+	fmt.Fprintf(w, "build-info")
+}
+
 func writeJsonError(w http.ResponseWriter, errorMsg string, statusCode int) {
 	w.WriteHeader(statusCode)
 	fmt.Fprintln(w, fmt.Sprintf("{\"message\": \"%s\"}", errorMsg))
