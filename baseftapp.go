@@ -23,7 +23,8 @@ import (
 // It will also setup the healthcheck and ping endpoints
 // Endpoints are wrapped in a metrics timer and request loggin including transactionID, which is generated
 // if not found on the request as X-Request-Id header
-func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, *http.Request), port int) {
+
+func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, *http.Request), port int, serviceName string, env string) {
 	for path, eng := range engs {
 		err := eng.Initialise()
 		if err != nil {
@@ -34,12 +35,25 @@ func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, 
 	m := router(engs, healthHandler)
 	http.Handle("/", m)
 
+	if env != "local" {
+		f, err := os.OpenFile("/var/log/apps/"+serviceName+"-go-app.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
+		if err == nil {
+			log.SetFormatter(&log.TextFormatter{})
+			log.SetOutput(f)
+		} else {
+			log.Fatalf("Failed to initialise log file, %v", err)
+		}
+
+		defer f.Close()
+	}
+
 	log.Printf("listening on %d", port)
 	http.ListenAndServe(fmt.Sprintf(":%d", port),
 		httphandlers.HTTPMetricsHandler(metrics.DefaultRegistry,
 			httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), m)))
 
-	log.Println("exiting")
+	log.Printf("exiting on %d", serviceName)
+
 }
 
 //Router sets up the Router - extracted for testability
