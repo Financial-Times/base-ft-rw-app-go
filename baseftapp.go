@@ -28,7 +28,7 @@ func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, 
 	for path, eng := range engs {
 		err := eng.Initialise()
 		if err != nil {
-			log.Fatalf("Eng for path %s could not startup, err=%s", path, err)
+			log.Fatalf("Service for path %s could not startup, err=%s", path, err)
 		}
 	}
 
