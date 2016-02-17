@@ -11,6 +11,7 @@ import (
 	"github.com/Financial-Times/http-handlers-go"
 	log "github.com/Sirupsen/logrus"
 	"github.com/cyberdelia/go-metrics-graphite"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/rcrowley/go-metrics"
 )
@@ -61,11 +62,20 @@ func router(engs map[string]Service, healthHandler func(http.ResponseWriter, *ht
 	m := mux.NewRouter()
 
 	for path, eng := range engs {
-		handlers := httpHandlers{eng}
-		m.HandleFunc(fmt.Sprintf("/%s/__count", path), handlers.countHandler).Methods("GET")
-		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.getHandler).Methods("GET")
-		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.putHandler).Methods("PUT")
-		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.deleteHandler).Methods("DELETE")
+		methodHandlers := httpHandlers{eng}
+
+		resource := handlers.MethodHandler{
+			"GET":    http.HandlerFunc(methodHandlers.getHandler),
+			"PUT":    http.HandlerFunc(methodHandlers.putHandler),
+			"DELETE": http.HandlerFunc(methodHandlers.deleteHandler),
+		}
+
+		count := handlers.MethodHandler{
+			"GET": http.HandlerFunc(methodHandlers.countHandler),
+		}
+
+		m.Handle(fmt.Sprintf("/%s/__count", path), count)
+		m.Handle(fmt.Sprintf("/%s/{uuid}", path), resource)
 	}
 
 	m.HandleFunc("/__health", healthHandler)
