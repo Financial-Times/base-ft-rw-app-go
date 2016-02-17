@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Financial-Times/http-handlers-go"
+	"github.com/Financial-Times/http-handlers-go/httphandlers"
 	log "github.com/Sirupsen/logrus"
 	"github.com/cyberdelia/go-metrics-graphite"
 	"github.com/gorilla/mux"
