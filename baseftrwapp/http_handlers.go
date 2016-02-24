@@ -21,6 +21,7 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 
 	dec := json.NewDecoder(req.Body)
 	inst, docUUID, err := hh.s.DecodeJSON(dec)
+
 	if err != nil {
 		log.Errorf("Error on parse=%v\n", err)
 		writeJsonError(w, err.Error(), http.StatusBadRequest)
@@ -34,9 +35,16 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 
 	err = hh.s.Write(inst)
 	if err != nil {
-		log.Errorf("Error on write=%v\n", err)
-		writeJsonError(w, err.Error(), http.StatusServiceUnavailable)
-		return
+		switch e := err.(type) {
+		case invalidRequestError:
+			log.Errorf("InvalidRequestError on write = %v\n", e.InvalidRequestDetails())
+			writeJsonError(w, e.InvalidRequestDetails(), http.StatusBadRequest)
+			return
+		default:
+			log.Errorf("Error on write=%v\n", err)
+			writeJsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
 	}
 	//Not necessary for a 200 to be returned, but for PUT requests, if don't specify, don't see 200 status logged in request logs
 	w.WriteHeader(http.StatusOK)

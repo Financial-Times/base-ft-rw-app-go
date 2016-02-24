@@ -38,8 +38,8 @@ func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, 
 	if env != "local" {
 		f, err := os.OpenFile("/var/log/apps/"+serviceName+"-go-app.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 		if err == nil {
-			log.SetFormatter(&log.TextFormatter{})
 			log.SetOutput(f)
+			log.SetFormatter(&log.TextFormatter{})
 		} else {
 			log.Fatalf("Failed to initialise log file, %v", err)
 		}
