@@ -22,8 +22,6 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 	dec := json.NewDecoder(req.Body)
 	inst, docUUID, err := hh.s.DecodeJSON(dec)
 
-	fmt.Printf("ERROR: %s and OBJECT:%v", err, inst)
-
 	if err != nil {
 		log.Errorf("Error on parse=%v\n", err)
 		writeJsonError(w, err.Error(), http.StatusBadRequest)
@@ -38,7 +36,7 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 	err = hh.s.Write(inst)
 	if err != nil {
 		switch e := err.(type) {
-		case InvalidRequestError:
+		case invalidRequestError:
 			log.Errorf("InvalidRequestError on write = %v\n", e.InvalidRequestDetails())
 			writeJsonError(w, e.InvalidRequestDetails(), http.StatusBadRequest)
 			return
