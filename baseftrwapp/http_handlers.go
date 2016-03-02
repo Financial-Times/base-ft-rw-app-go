@@ -36,6 +36,10 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 	err = hh.s.Write(inst)
 	if err != nil {
 		switch e := err.(type) {
+		case *ConflictError:
+			log.Errorf("ConflictError on write = %v\n", e.err)
+			writeJsonError(w, e.Error(), http.StatusConflict)
+			return
 		case invalidRequestError:
 			log.Errorf("InvalidRequestError on write = %v\n", e.InvalidRequestDetails())
 			writeJsonError(w, e.InvalidRequestDetails(), http.StatusBadRequest)

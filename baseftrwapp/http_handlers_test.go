@@ -27,12 +27,13 @@ func TestPutHandler(t *testing.T) {
 		{"ParseError", newRequest("PUT", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failParse: true}), http.StatusBadRequest, "", errorMessage("TEST failing to DECODE")},
 		{"UUIDMisMatch", newRequest("PUT", fmt.Sprintf("/dummies/%s", "99999")), dummyServices(dummyService{uuid: knownUUID}), http.StatusBadRequest, "", errorMessage("uuid does not match: '12345' '99999'")},
 		{"WriteFailed", newRequest("PUT", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failWrite: true}), http.StatusServiceUnavailable, "", errorMessage("TEST failing to WRITE")},
+		{"WriteFailedDueToConflict", newRequest("PUT", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failConflict: true}), http.StatusConflict, "", errorMessage("TEST failing to WRITE due to CONFLICT - Some error")},
 	}
 
 	for _, test := range tests {
 		rec := httptest.NewRecorder()
 		router(test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
-		assert.True(test.statusCode == rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
+		assert.Equal(test.statusCode, rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
 		assert.Equal(test.body, rec.Body.String(), fmt.Sprintf("%s: Wrong body", test.name))
 	}
 }
@@ -55,7 +56,7 @@ func TestGetHandler(t *testing.T) {
 	for _, test := range tests {
 		rec := httptest.NewRecorder()
 		router(test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
-		assert.True(test.statusCode == rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
+		assert.Equal(test.statusCode, rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
 		assert.Equal(test.body, rec.Body.String(), fmt.Sprintf("%s: Wrong body", test.name))
 	}
 }
@@ -78,7 +79,7 @@ func TestDeleteHandler(t *testing.T) {
 	for _, test := range tests {
 		rec := httptest.NewRecorder()
 		router(test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
-		assert.True(test.statusCode == rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
+		assert.Equal(test.statusCode, rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
 		assert.Equal(test.body, rec.Body.String(), fmt.Sprintf("%s: Wrong body", test.name))
 	}
 }
@@ -100,7 +101,7 @@ func TestCountHandler(t *testing.T) {
 	for _, test := range tests {
 		rec := httptest.NewRecorder()
 		router(test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
-		assert.True(test.statusCode == rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
+		assert.Equal(test.statusCode, rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
 		assert.Equal(test.body, rec.Body.String(), fmt.Sprintf("%s: Wrong body", test.name))
 	}
 }
@@ -122,12 +123,13 @@ func dummyServices(service Service) map[string]Service {
 }
 
 type dummyService struct {
-	uuid       string
-	failParse  bool
-	failWrite  bool
-	failRead   bool
-	failDelete bool
-	failCount  bool
+	uuid         string
+	failParse    bool
+	failWrite    bool
+	failRead     bool
+	failDelete   bool
+	failCount    bool
+	failConflict bool
 }
 
 type dummyServiceData struct {
@@ -136,6 +138,9 @@ type dummyServiceData struct {
 func (dS dummyService) Write(thing interface{}) error {
 	if dS.failWrite {
 		return errors.New("TEST failing to WRITE")
+	}
+	if dS.failConflict {
+		return NewConflictError("TEST failing to WRITE due to CONFLICT", errors.New("Some error"))
 	}
 	return nil
 }
