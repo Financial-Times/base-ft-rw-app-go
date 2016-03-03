@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/Financial-Times/neo-utils-go/neoutils"
+	"github.com/jmcvetta/neoism"
 )
 
 const knownUUID = "12345"
@@ -27,7 +29,7 @@ func TestPutHandler(t *testing.T) {
 		{"ParseError", newRequest("PUT", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failParse: true}), http.StatusBadRequest, "", errorMessage("TEST failing to DECODE")},
 		{"UUIDMisMatch", newRequest("PUT", fmt.Sprintf("/dummies/%s", "99999")), dummyServices(dummyService{uuid: knownUUID}), http.StatusBadRequest, "", errorMessage("uuid does not match: '12345' '99999'")},
 		{"WriteFailed", newRequest("PUT", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failWrite: true}), http.StatusServiceUnavailable, "", errorMessage("TEST failing to WRITE")},
-		{"WriteFailedDueToConflict", newRequest("PUT", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failConflict: true}), http.StatusConflict, "", errorMessage("TEST failing to WRITE due to CONFLICT - Some error")},
+		{"WriteFailedDueToConflict", newRequest("PUT", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failConflict: true}), http.StatusConflict, "", errorMessage("Neo4j ConstraintViolation TEST failing to WRITE due to CONFLICT")},
 	}
 
 	for _, test := range tests {
@@ -140,7 +142,7 @@ func (dS dummyService) Write(thing interface{}) error {
 		return errors.New("TEST failing to WRITE")
 	}
 	if dS.failConflict {
-		return NewConflictError("TEST failing to WRITE due to CONFLICT", errors.New("Some error"))
+		return neoutils.NewConstraintViolationError("TEST failing to WRITE due to CONFLICT", &neoism.NeoError{})
 	}
 	return nil
 }
