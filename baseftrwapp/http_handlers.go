@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Financial-Times/neo-utils-go/neoutils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 )
@@ -24,29 +25,29 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		log.Errorf("Error on parse=%v\n", err)
-		writeJsonError(w, err.Error(), http.StatusBadRequest)
+		writeJSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	if docUUID != uuid {
-		writeJsonError(w, fmt.Sprintf("uuid does not match: '%v' '%v'", docUUID, uuid), http.StatusBadRequest)
+		writeJSONError(w, fmt.Sprintf("uuid does not match: '%v' '%v'", docUUID, uuid), http.StatusBadRequest)
 		return
 	}
 
 	err = hh.s.Write(inst)
 	if err != nil {
 		switch e := err.(type) {
-		case *ConflictError:
-			log.Errorf("ConflictError on write = %v\n", e.err)
-			writeJsonError(w, e.Error(), http.StatusConflict)
+		case *neoutils.ConstraintViolationError:
+			log.Errorf("ConflictError on write = %v\n", e.Err)
+			writeJSONError(w, e.Error(), http.StatusConflict)
 			return
 		case invalidRequestError:
 			log.Errorf("InvalidRequestError on write = %v\n", e.InvalidRequestDetails())
-			writeJsonError(w, e.InvalidRequestDetails(), http.StatusBadRequest)
+			writeJSONError(w, e.InvalidRequestDetails(), http.StatusBadRequest)
 			return
 		default:
 			log.Errorf("Error on write=%v\n", err)
-			writeJsonError(w, err.Error(), http.StatusServiceUnavailable)
+			writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
 	}
@@ -61,7 +62,7 @@ func (hh *httpHandlers) deleteHandler(w http.ResponseWriter, req *http.Request) 
 	deleted, err := hh.s.Delete(uuid)
 
 	if err != nil {
-		writeJsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 
@@ -82,7 +83,7 @@ func (hh *httpHandlers) getHandler(w http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		log.Errorf("Error on read=%v\n", err)
-		writeJsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 
@@ -94,7 +95,7 @@ func (hh *httpHandlers) getHandler(w http.ResponseWriter, req *http.Request) {
 	enc := json.NewEncoder(w)
 	if err := enc.Encode(obj); err != nil {
 		log.Errorf("Error on json encoding=%v\n", err)
-		writeJsonError(w, err.Error(), http.StatusInternalServerError)
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
@@ -107,7 +108,7 @@ func (hh *httpHandlers) countHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Errorf("Error on read=%v\n", err)
-		writeJsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 
@@ -115,7 +116,7 @@ func (hh *httpHandlers) countHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := enc.Encode(count); err != nil {
 		log.Errorf("Error on json encoding=%v\n", err)
-		writeJsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 }
@@ -129,7 +130,7 @@ func buildInfoHandler(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "build-info")
 }
 
-func writeJsonError(w http.ResponseWriter, errorMsg string, statusCode int) {
+func writeJSONError(w http.ResponseWriter, errorMsg string, statusCode int) {
 	w.WriteHeader(statusCode)
 	fmt.Fprintln(w, fmt.Sprintf("{\"message\": \"%s\"}", errorMsg))
 }
