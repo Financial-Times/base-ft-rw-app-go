@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Financial-Times/http-handlers-go/httphandlers"
+	status "github.com/Financial-Times/service-status-go/httphandlers"
 	log "github.com/Sirupsen/logrus"
 	"github.com/cyberdelia/go-metrics-graphite"
 	"github.com/gorilla/mux"
@@ -23,7 +24,6 @@ import (
 // It will also setup the healthcheck and ping endpoints
 // Endpoints are wrapped in a metrics timer and request loggin including transactionID, which is generated
 // if not found on the request as X-Request-Id header
-
 func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, *http.Request), port int, serviceName string, env string) {
 	for path, eng := range engs {
 		err := eng.Initialise()
@@ -52,7 +52,7 @@ func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, 
 		httphandlers.HTTPMetricsHandler(metrics.DefaultRegistry,
 			httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), m)))
 
-	log.Printf("exiting on %d", serviceName)
+	log.Printf("exiting on %s", serviceName)
 
 }
 
@@ -71,13 +71,13 @@ func router(engs map[string]Service, healthHandler func(http.ResponseWriter, *ht
 	m.HandleFunc("/__health", healthHandler)
 	// The top one of these feels more correct, but the lower one matches what we have in Dropwizard,
 	// so it's what apps expect currently
-	m.HandleFunc("/__ping", pingHandler)
-	m.HandleFunc("/ping", pingHandler)
+	m.HandleFunc(status.PingPath, status.PingHandler)
+	m.HandleFunc(status.PingPathDW, status.PingHandler)
 
 	// The top one of these feels more correct, but the lower one matches what we have in Dropwizard,
 	// so it's what apps expect currently same as ping, the content of build-info needs more definition
-	m.HandleFunc("/__build-info", buildInfoHandler)
-	m.HandleFunc("/build-info", buildInfoHandler)
+	m.HandleFunc(status.BuildInfoPath, status.BuildInfoHandler)
+	m.HandleFunc(status.BuildInfoPathDW, status.BuildInfoHandler)
 
 	return m
 }
