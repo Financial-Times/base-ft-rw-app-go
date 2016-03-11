@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"compress/gzip"
+
+	"io"
+
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
@@ -20,7 +24,19 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 
-	dec := json.NewDecoder(req.Body)
+	var body io.Reader = req.Body
+	if req.Header.Get("Content-Encoding") == "gzip" {
+		unzipped, err := gzip.NewReader(req.Body)
+		if err != nil {
+			log.Errorf("Error on unzip=%v\n", err)
+			writeJSONError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		defer unzipped.Close()
+		body = unzipped
+	}
+
+	dec := json.NewDecoder(body)
 	inst, docUUID, err := hh.s.DecodeJSON(dec)
 
 	if err != nil {
