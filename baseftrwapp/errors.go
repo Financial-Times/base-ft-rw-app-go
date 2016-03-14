@@ -4,3 +4,8 @@ package baseftrwapp
 type invalidRequestError interface {
 	InvalidRequestDetails() string
 }
+
+// NoContentReturnedError if No Content is returned for the request
+type NoContentReturnedError interface {
+	NoContentReturnedDetails() string
+}
