@@ -54,7 +54,7 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		switch e := err.(type) {
-		case NoContentReturnedError:
+		case noContentReturnedError:
 			log.Errorf("NoContentReturnedError on write = %v\n", e.NoContentReturnedDetails())
 			writeJSONError(w, e.NoContentReturnedDetails(), http.StatusNoContent)
 			return

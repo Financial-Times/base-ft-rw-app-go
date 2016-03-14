@@ -6,6 +6,6 @@ type invalidRequestError interface {
 }
 
 // NoContentReturnedError if No Content is returned for the request
-type NoContentReturnedError interface {
+type noContentReturnedError interface {
 	NoContentReturnedDetails() string
 }
