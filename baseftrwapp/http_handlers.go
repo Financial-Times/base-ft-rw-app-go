@@ -51,8 +51,13 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	err = hh.s.Write(inst)
+
 	if err != nil {
 		switch e := err.(type) {
+		case noContentReturnedError:
+			log.Errorf("NoContentReturnedError on write = %v\n", e.NoContentReturnedDetails())
+			writeJSONError(w, e.NoContentReturnedDetails(), http.StatusNoContent)
+			return
 		case *neoutils.ConstraintViolationError:
 			log.Errorf("ConflictError on write = %v\n", e.Err)
 			writeJSONError(w, e.Error(), http.StatusConflict)
