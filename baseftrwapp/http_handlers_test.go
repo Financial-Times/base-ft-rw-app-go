@@ -8,9 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	"github.com/jmcvetta/neoism"
+	"github.com/stretchr/testify/assert"
 )
 
 const knownUUID = "12345"
@@ -108,6 +108,28 @@ func TestCountHandler(t *testing.T) {
 	}
 }
 
+func TestGtgHandler(t *testing.T) {
+	assert := assert.New(t)
+	tests := []struct {
+		name          string
+		req           *http.Request
+		dummyServices map[string]Service
+		statusCode    int
+		contentType   string // Contents of the Content-Type header
+		body          string
+	}{
+		{"Success", newRequest("GET", "/__gtg"), dummyServices(dummyService{failCheck: false}), http.StatusOK, "", "OK"},
+		{"GTGError", newRequest("GET", "/__gtg"), dummyServices(dummyService{failCheck: true}), http.StatusServiceUnavailable, "", "TEST failing to CHECK"},
+	}
+
+	for _, test := range tests {
+		rec := httptest.NewRecorder()
+		router(test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
+		assert.Equal(test.statusCode, rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
+		assert.Equal(test.body, rec.Body.String(), fmt.Sprintf("%s: Wrong body", test.name))
+	}
+}
+
 func newRequest(method, url string) *http.Request {
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
@@ -132,6 +154,7 @@ type dummyService struct {
 	failDelete   bool
 	failCount    bool
 	failConflict bool
+	failCheck    bool
 }
 
 type dummyServiceData struct {
@@ -182,6 +205,9 @@ func (dS dummyService) Count() (int, error) {
 }
 
 func (dS dummyService) Check() error {
+	if dS.failCheck {
+		return errors.New("TEST failing to CHECK")
+	}
 	return nil
 }
 

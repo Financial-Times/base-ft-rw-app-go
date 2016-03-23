@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Financial-Times/http-handlers-go/httphandlers"
+	"github.com/Financial-Times/service-status-go/gtg"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
 	log "github.com/Sirupsen/logrus"
 	graphite "github.com/cyberdelia/go-metrics-graphite"
@@ -60,12 +61,21 @@ func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, 
 func router(engs map[string]Service, healthHandler func(http.ResponseWriter, *http.Request)) *mux.Router {
 	m := mux.NewRouter()
 
+	gtgChecker := make([]gtg.StatusChecker, 0)
+
 	for path, eng := range engs {
 		handlers := httpHandlers{eng}
 		m.HandleFunc(fmt.Sprintf("/%s/__count", path), handlers.countHandler).Methods("GET")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.getHandler).Methods("GET")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.putHandler).Methods("PUT")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.deleteHandler).Methods("DELETE")
+		gtgChecker = append(gtgChecker, func() gtg.Status {
+			if err := eng.Check(); err != nil {
+				return gtg.Status{GoodToGo: false, Message: err.Error()}
+			}
+
+			return gtg.Status{GoodToGo: true}
+		})
 	}
 
 	m.HandleFunc("/__health", healthHandler)
@@ -78,6 +88,8 @@ func router(engs map[string]Service, healthHandler func(http.ResponseWriter, *ht
 	// so it's what apps expect currently same as ping, the content of build-info needs more definition
 	m.HandleFunc(status.BuildInfoPath, status.BuildInfoHandler)
 	m.HandleFunc(status.BuildInfoPathDW, status.BuildInfoHandler)
+
+	m.HandleFunc(status.GTGPath, status.NewGoodToGoHandler(gtg.FailFastParallelCheck(gtgChecker)))
 
 	return m
 }
