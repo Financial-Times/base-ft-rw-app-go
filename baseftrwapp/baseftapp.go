@@ -33,8 +33,7 @@ func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, 
 		}
 	}
 
-	m := router(engs, healthHandler)
-	http.Handle("/", m)
+	//	http.Handle("/", m)
 
 	if env != "local" {
 		f, err := os.OpenFile("/var/log/apps/"+serviceName+"-go-app.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
@@ -48,10 +47,15 @@ func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, 
 		defer f.Close()
 	}
 
+	var m http.Handler
+	m = router(engs, healthHandler)
+	m = httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), m)
+	m = httphandlers.HTTPMetricsHandler(metrics.DefaultRegistry, m)
+
+	http.Handle("/", m)
+
 	log.Printf("listening on %d", port)
-	http.ListenAndServe(fmt.Sprintf(":%d", port),
-		httphandlers.HTTPMetricsHandler(metrics.DefaultRegistry,
-			httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), m)))
+	http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 
 	log.Printf("exiting on %s", serviceName)
 
