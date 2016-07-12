@@ -17,13 +17,13 @@ import (
 	metrics "github.com/rcrowley/go-metrics"
 )
 
-type rwConf struct {
-	engs          map[string]Service
-	healthHandler func(http.ResponseWriter, *http.Request)
-	port          int
-	serviceName   string
-	env           string
-	enableReqLog  bool
+type RWConf struct {
+	Engs          map[string]Service
+	HealthHandler func(http.ResponseWriter, *http.Request)
+	Port          int
+	ServiceName   string
+	Env           string
+	EnableReqLog  bool
 }
 
 // RunServer will set up GET, PUT and DELETE endpoints for the specified path,
@@ -35,18 +35,18 @@ type rwConf struct {
 // Endpoints are wrapped in a metrics timer and request loggin including transactionID, which is generated
 // if not found on the request as X-Request-Id header
 func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, *http.Request), port int, serviceName string, env string) {
-	RunServerWithConf(rwConf{
-		enableReqLog:  true,
-		engs:          engs,
-		env:           env,
-		healthHandler: healthHandler,
-		port:          port,
-		serviceName:   serviceName,
+	RunServerWithConf(RWConf{
+		EnableReqLog:  true,
+		Engs:          engs,
+		Env:           env,
+		HealthHandler: healthHandler,
+		Port:          port,
+		ServiceName:   serviceName,
 	})
 }
 
-func RunServerWithConf(conf rwConf) {
-	for path, eng := range conf.engs {
+func RunServerWithConf(conf RWConf) {
+	for path, eng := range conf.Engs {
 		err := eng.Initialise()
 		if err != nil {
 			log.Fatalf("Service for path %s could not startup, err=%s", path, err)
@@ -54,8 +54,8 @@ func RunServerWithConf(conf rwConf) {
 	}
 
 	//TODO do we still need this?
-	if conf.env != "local" {
-		f, err := os.OpenFile("/var/log/apps/"+conf.serviceName+"-go-app.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if conf.Env != "local" {
+		f, err := os.OpenFile("/var/log/apps/"+conf.ServiceName +"-go-app.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 		if err == nil {
 			log.SetOutput(f)
 			log.SetFormatter(&log.TextFormatter{DisableColors: true})
@@ -66,17 +66,17 @@ func RunServerWithConf(conf rwConf) {
 	}
 
 	var m http.Handler
-	m = router(conf.engs, conf.healthHandler)
-	if conf.enableReqLog {
+	m = router(conf.Engs, conf.HealthHandler)
+	if conf.EnableReqLog {
 		m = httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), m)
 	}
 	m = httphandlers.HTTPMetricsHandler(metrics.DefaultRegistry, m)
 
 	http.Handle("/", m)
 
-	log.Printf("listening on %d", conf.port)
-	http.ListenAndServe(fmt.Sprintf(":%d", conf.port), nil)
-	log.Printf("exiting on %s", conf.serviceName)
+	log.Printf("listening on %d", conf.Port)
+	http.ListenAndServe(fmt.Sprintf(":%d", conf.Port), nil)
+	log.Printf("exiting on %s", conf.ServiceName)
 }
 
 //Router sets up the Router - extracted for testability
