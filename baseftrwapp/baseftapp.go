@@ -17,6 +17,15 @@ import (
 	metrics "github.com/rcrowley/go-metrics"
 )
 
+type rwConf struct {
+	engs          map[string]Service
+	healthHandler func(http.ResponseWriter, *http.Request)
+	port          int
+	serviceName   string
+	env           string
+	enableReqLog  bool
+}
+
 // RunServer will set up GET, PUT and DELETE endpoints for the specified path,
 // calling the appropriate service functions:
 // PUT -> Write
@@ -26,39 +35,48 @@ import (
 // Endpoints are wrapped in a metrics timer and request loggin including transactionID, which is generated
 // if not found on the request as X-Request-Id header
 func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, *http.Request), port int, serviceName string, env string) {
-	for path, eng := range engs {
+	RunServerWithConf(rwConf{
+		enableReqLog:  true,
+		engs:          engs,
+		env:           env,
+		healthHandler: healthHandler,
+		port:          port,
+		serviceName:   serviceName,
+	})
+}
+
+func RunServerWithConf(conf rwConf) {
+	for path, eng := range conf.engs {
 		err := eng.Initialise()
 		if err != nil {
 			log.Fatalf("Service for path %s could not startup, err=%s", path, err)
 		}
 	}
 
-	//	http.Handle("/", m)
-
-	if env != "local" {
-		f, err := os.OpenFile("/var/log/apps/"+serviceName+"-go-app.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	//TODO do we still need this?
+	if conf.env != "local" {
+		f, err := os.OpenFile("/var/log/apps/"+conf.serviceName+"-go-app.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 		if err == nil {
 			log.SetOutput(f)
 			log.SetFormatter(&log.TextFormatter{DisableColors: true})
 		} else {
 			log.Fatalf("Failed to initialise log file, %v", err)
 		}
-
 		defer f.Close()
 	}
 
 	var m http.Handler
-	m = router(engs, healthHandler)
-	m = httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), m)
+	m = router(conf.engs, conf.healthHandler)
+	if conf.enableReqLog {
+		m = httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), m)
+	}
 	m = httphandlers.HTTPMetricsHandler(metrics.DefaultRegistry, m)
 
 	http.Handle("/", m)
 
-	log.Printf("listening on %d", port)
-	http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
-
-	log.Printf("exiting on %s", serviceName)
-
+	log.Printf("listening on %d", conf.port)
+	http.ListenAndServe(fmt.Sprintf(":%d", conf.port), nil)
+	log.Printf("exiting on %s", conf.serviceName)
 }
 
 //Router sets up the Router - extracted for testability
