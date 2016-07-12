@@ -18,7 +18,7 @@ import (
 )
 
 type RWConf struct {
-	Engs          map[string]Service
+	Services      map[string]Service
 	HealthHandler func(http.ResponseWriter, *http.Request)
 	Port          int
 	ServiceName   string
@@ -34,10 +34,10 @@ type RWConf struct {
 // It will also setup the healthcheck and ping endpoints
 // Endpoints are wrapped in a metrics timer and request loggin including transactionID, which is generated
 // if not found on the request as X-Request-Id header
-func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, *http.Request), port int, serviceName string, env string) {
+func RunServer(services map[string]Service, healthHandler func(http.ResponseWriter, *http.Request), port int, serviceName string, env string) {
 	RunServerWithConf(RWConf{
 		EnableReqLog:  true,
-		Engs:          engs,
+		Services:      services,
 		Env:           env,
 		HealthHandler: healthHandler,
 		Port:          port,
@@ -46,16 +46,15 @@ func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, 
 }
 
 func RunServerWithConf(conf RWConf) {
-	for path, eng := range conf.Engs {
-		err := eng.Initialise()
+	for path, service := range conf.Services {
+		err := service.Initialise()
 		if err != nil {
 			log.Fatalf("Service for path %s could not startup, err=%s", path, err)
 		}
 	}
 
-	//TODO do we still need this?
 	if conf.Env != "local" {
-		f, err := os.OpenFile("/var/log/apps/"+conf.ServiceName +"-go-app.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		f, err := os.OpenFile("/var/log/apps/"+conf.ServiceName+"-go-app.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 		if err == nil {
 			log.SetOutput(f)
 			log.SetFormatter(&log.TextFormatter{DisableColors: true})
@@ -66,7 +65,7 @@ func RunServerWithConf(conf RWConf) {
 	}
 
 	var m http.Handler
-	m = router(conf.Engs, conf.HealthHandler)
+	m = router(conf.Services, conf.HealthHandler)
 	if conf.EnableReqLog {
 		m = httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), m)
 	}
@@ -80,19 +79,19 @@ func RunServerWithConf(conf RWConf) {
 }
 
 //Router sets up the Router - extracted for testability
-func router(engs map[string]Service, healthHandler func(http.ResponseWriter, *http.Request)) *mux.Router {
+func router(services map[string]Service, healthHandler func(http.ResponseWriter, *http.Request)) *mux.Router {
 	m := mux.NewRouter()
 
 	gtgChecker := make([]gtg.StatusChecker, 0)
 
-	for path, eng := range engs {
-		handlers := httpHandlers{eng}
+	for path, service := range services {
+		handlers := httpHandlers{service}
 		m.HandleFunc(fmt.Sprintf("/%s/__count", path), handlers.countHandler).Methods("GET")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.getHandler).Methods("GET")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.putHandler).Methods("PUT")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.deleteHandler).Methods("DELETE")
 		gtgChecker = append(gtgChecker, func() gtg.Status {
-			if err := eng.Check(); err != nil {
+			if err := service.Check(); err != nil {
 				return gtg.Status{GoodToGo: false, Message: err.Error()}
 			}
 
