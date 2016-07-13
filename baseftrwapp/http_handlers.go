@@ -11,6 +11,7 @@ import (
 
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	"github.com/Financial-Times/up-rw-app-api-go/rwapi"
+	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 )
 
