@@ -17,6 +17,15 @@ import (
 	metrics "github.com/rcrowley/go-metrics"
 )
 
+type RWConf struct {
+	Services      map[string]Service
+	HealthHandler func(http.ResponseWriter, *http.Request)
+	Port          int
+	ServiceName   string
+	Env           string
+	EnableReqLog  bool
+}
+
 // RunServer will set up GET, PUT and DELETE endpoints for the specified path,
 // calling the appropriate service functions:
 // PUT -> Write
@@ -25,57 +34,65 @@ import (
 // It will also setup the healthcheck and ping endpoints
 // Endpoints are wrapped in a metrics timer and request loggin including transactionID, which is generated
 // if not found on the request as X-Request-Id header
-func RunServer(engs map[string]Service, healthHandler func(http.ResponseWriter, *http.Request), port int, serviceName string, env string) {
-	for path, eng := range engs {
-		err := eng.Initialise()
+func RunServer(services map[string]Service, healthHandler func(http.ResponseWriter, *http.Request), port int, serviceName string, env string) {
+	RunServerWithConf(RWConf{
+		EnableReqLog:  true,
+		Services:      services,
+		Env:           env,
+		HealthHandler: healthHandler,
+		Port:          port,
+		ServiceName:   serviceName,
+	})
+}
+
+func RunServerWithConf(conf RWConf) {
+	for path, service := range conf.Services {
+		err := service.Initialise()
 		if err != nil {
 			log.Fatalf("Service for path %s could not startup, err=%s", path, err)
 		}
 	}
 
-	//	http.Handle("/", m)
-
-	if env != "local" {
-		f, err := os.OpenFile("/var/log/apps/"+serviceName+"-go-app.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if conf.Env != "local" {
+		f, err := os.OpenFile("/var/log/apps/"+conf.ServiceName+"-go-app.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 		if err == nil {
 			log.SetOutput(f)
 			log.SetFormatter(&log.TextFormatter{DisableColors: true})
 		} else {
 			log.Fatalf("Failed to initialise log file, %v", err)
 		}
-
 		defer f.Close()
 	}
 
 	var m http.Handler
-	m = router(engs, healthHandler)
-	m = httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), m)
+	m = router(conf.Services, conf.HealthHandler)
+	if conf.EnableReqLog {
+		m = httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), m)
+	}
 	m = httphandlers.HTTPMetricsHandler(metrics.DefaultRegistry, m)
 
 	http.Handle("/", m)
 
-	log.Printf("listening on %d", port)
-	http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
-
-	log.Printf("exiting on %s", serviceName)
-
+	log.Printf("listening on %d", conf.Port)
+	http.ListenAndServe(fmt.Sprintf(":%d", conf.Port), nil)
+	log.Printf("exiting on %s", conf.ServiceName)
 }
 
 //Router sets up the Router - extracted for testability
-func router(engs map[string]Service, healthHandler func(http.ResponseWriter, *http.Request)) *mux.Router {
+func router(services map[string]Service, healthHandler func(http.ResponseWriter, *http.Request)) *mux.Router {
 	m := mux.NewRouter()
 
 	gtgChecker := make([]gtg.StatusChecker, 0)
 
-	for path, eng := range engs {
-		handlers := httpHandlers{eng}
+	for path, service := range services {
+		handlers := httpHandlers{service}
 		m.HandleFunc(fmt.Sprintf("/%s/__count", path), handlers.countHandler).Methods("GET")
 		m.HandleFunc(fmt.Sprintf("/%s/__ids", path), handlers.idsHandler).Methods("GET")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.getHandler).Methods("GET")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.putHandler).Methods("PUT")
 		m.HandleFunc(fmt.Sprintf("/%s/{uuid}", path), handlers.deleteHandler).Methods("DELETE")
 		gtgChecker = append(gtgChecker, func() gtg.Status {
-			if err := eng.Check(); err != nil {
+			if err := service.Check(); err != nil {
 				return gtg.Status{GoodToGo: false, Message: err.Error()}
 			}
 

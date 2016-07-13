@@ -11,7 +11,6 @@ import (
 
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	"github.com/Financial-Times/up-rw-app-api-go/rwapi"
-	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 )
 
@@ -29,7 +28,6 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Encoding") == "gzip" {
 		unzipped, err := gzip.NewReader(req.Body)
 		if err != nil {
-			log.Errorf("Error on unzip=%v\n", err)
 			writeJSONError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -41,7 +39,6 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 	inst, docUUID, err := hh.s.DecodeJSON(dec)
 
 	if err != nil {
-		log.Errorf("Error on parse=%v\n", err)
 		writeJSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -56,19 +53,15 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		switch e := err.(type) {
 		case noContentReturnedError:
-			log.Errorf("NoContentReturnedError on write = %v\n", e.NoContentReturnedDetails())
 			writeJSONError(w, e.NoContentReturnedDetails(), http.StatusNoContent)
 			return
 		case *neoutils.ConstraintViolationError:
-			log.Errorf("ConflictError on write = %v\n", e.Err)
 			writeJSONError(w, e.Error(), http.StatusConflict)
 			return
 		case invalidRequestError:
-			log.Errorf("InvalidRequestError on write = %v\n", e.InvalidRequestDetails())
 			writeJSONError(w, e.InvalidRequestDetails(), http.StatusBadRequest)
 			return
 		default:
-			log.Errorf("Error on write=%v\n", err)
 			writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
@@ -104,7 +97,6 @@ func (hh *httpHandlers) getHandler(w http.ResponseWriter, req *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
 	if err != nil {
-		log.Errorf("Error on read=%v\n", err)
 		writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
@@ -116,7 +108,6 @@ func (hh *httpHandlers) getHandler(w http.ResponseWriter, req *http.Request) {
 
 	enc := json.NewEncoder(w)
 	if err := enc.Encode(obj); err != nil {
-		log.Errorf("Error on json encoding=%v\n", err)
 		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -129,7 +120,6 @@ func (hh *httpHandlers) countHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
 	if err != nil {
-		log.Errorf("Error on read=%v\n", err)
 		writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
@@ -137,7 +127,6 @@ func (hh *httpHandlers) countHandler(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 
 	if err := enc.Encode(count); err != nil {
-		log.Errorf("Error on json encoding=%v\n", err)
 		writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
