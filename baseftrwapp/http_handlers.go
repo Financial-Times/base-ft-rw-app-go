@@ -57,8 +57,13 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 			writeJSONError(w, e.NoContentReturnedDetails(), http.StatusNoContent)
 			return
 		case *neoutils.ConstraintViolationError:
+			// TODO: remove neo specific error check once all apps are
+			// updated to use neoutils.Connect() because that maps errors
+			// to rwapi.ConstraintOrTransactionError
 			writeJSONError(w, e.Error(), http.StatusConflict)
 			return
+		case rwapi.ConstraintOrTransactionError:
+			writeJSONError(w, e.Error(), http.StatusConflict)
 		case invalidRequestError:
 			writeJSONError(w, e.InvalidRequestDetails(), http.StatusBadRequest)
 			return
