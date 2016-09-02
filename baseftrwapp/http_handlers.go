@@ -64,6 +64,7 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 			return
 		case rwapi.ConstraintOrTransactionError:
 			writeJSONError(w, e.Error(), http.StatusConflict)
+			return 
 		case invalidRequestError:
 			writeJSONError(w, e.InvalidRequestDetails(), http.StatusBadRequest)
 			return
