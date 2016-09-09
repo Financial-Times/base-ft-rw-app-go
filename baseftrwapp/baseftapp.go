@@ -74,7 +74,7 @@ func RunServerWithConf(conf RWConf) {
 	http.Handle("/", m)
 
 	log.Printf("listening on %d", conf.Port)
-	http.ListenAndServe(fmt.Sprintf(":%d", conf.Port), nil)
+	log.Println(http.ListenAndServe(fmt.Sprintf(":%d", conf.Port), nil).Error())
 	log.Printf("exiting on %s", conf.ServiceName)
 }
 
