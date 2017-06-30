@@ -10,6 +10,7 @@ import (
 	"io"
 
 	"github.com/Financial-Times/neo-utils-go/neoutils"
+	"github.com/Financial-Times/transactionid-utils-go"
 	"github.com/Financial-Times/up-rw-app-api-go/rwapi"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
@@ -49,7 +50,7 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = hh.s.Write(inst)
+	err = hh.s.Write(inst, transactionidutils.GetTransactionIDFromRequest(req))
 
 	if err != nil {
 		switch e := err.(type) {
@@ -64,7 +65,7 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 			return
 		case rwapi.ConstraintOrTransactionError:
 			writeJSONError(w, e.Error(), http.StatusConflict)
-			return 
+			return
 		case invalidRequestError:
 			writeJSONError(w, e.InvalidRequestDetails(), http.StatusBadRequest)
 			return
@@ -81,7 +82,7 @@ func (hh *httpHandlers) deleteHandler(w http.ResponseWriter, req *http.Request) 
 	vars := mux.Vars(req)
 	uuid := vars["uuid"]
 
-	deleted, err := hh.s.Delete(uuid)
+	deleted, err := hh.s.Delete(uuid, transactionidutils.GetTransactionIDFromRequest(req))
 
 	if err != nil {
 		writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
@@ -99,7 +100,7 @@ func (hh *httpHandlers) getHandler(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	uuid := vars["uuid"]
 
-	obj, found, err := hh.s.Read(uuid)
+	obj, found, err := hh.s.Read(uuid, transactionidutils.GetTransactionIDFromRequest(req))
 
 	w.Header().Add("Content-Type", "application/json")
 
