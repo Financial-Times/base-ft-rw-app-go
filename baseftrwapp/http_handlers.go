@@ -10,10 +10,10 @@ import (
 	"io"
 
 	"github.com/Financial-Times/neo-utils-go/neoutils"
+	"github.com/Financial-Times/transactionid-utils-go"
 	"github.com/Financial-Times/up-rw-app-api-go/rwapi"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
-	"github.com/Financial-Times/transactionid-utils-go"
 )
 
 type httpHandlers struct {
@@ -23,7 +23,6 @@ type httpHandlers struct {
 func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	uuid := vars["uuid"]
-
 
 	w.Header().Add("Content-Type", "application/json")
 
@@ -67,7 +66,7 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 			return
 		case rwapi.ConstraintOrTransactionError:
 			writeJSONError(w, e.Error(), http.StatusConflict)
-			return 
+			return
 		case invalidRequestError:
 			writeJSONError(w, e.InvalidRequestDetails(), http.StatusBadRequest)
 			return
