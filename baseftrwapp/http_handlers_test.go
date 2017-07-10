@@ -15,6 +15,7 @@ import (
 
 const knownUUID = "12345"
 
+
 func TestPutHandler(t *testing.T) {
 	assert := assert.New(t)
 	tests := []struct {
@@ -148,6 +149,7 @@ func dummyServices(service Service) map[string]Service {
 
 type dummyService struct {
 	uuid         string
+	transId      string
 	failParse    bool
 	failWrite    bool
 	failRead     bool
@@ -160,33 +162,36 @@ type dummyService struct {
 type dummyServiceData struct {
 }
 
-func (dS dummyService) Write(thing interface{}) error {
+func (dS dummyService) Write(thing interface{}, transId string) error {
 	if dS.failWrite {
 		return errors.New("TEST failing to WRITE")
 	}
 	if dS.failConflict {
 		return neoutils.NewConstraintViolationError("TEST failing to WRITE due to CONFLICT", &neoism.NeoError{})
 	}
+	dS.transId = transId
 	return nil
 }
 
-func (dS dummyService) Read(uuid string) (thing interface{}, found bool, err error) {
+func (dS dummyService) Read(uuid string, transId string) (thing interface{}, found bool, err error) {
 	if dS.failRead {
 		return nil, false, errors.New("TEST failing to READ")
 	}
 	if uuid == dS.uuid {
 		return dummyServiceData{}, true, nil
 	}
+	dS.transId = transId
 	return nil, false, nil
 }
 
-func (dS dummyService) Delete(uuid string) (found bool, err error) {
+func (dS dummyService) Delete(uuid string, transId string) (found bool, err error) {
 	if dS.failDelete {
 		return false, errors.New("TEST failing to DELETE")
 	}
 	if uuid == dS.uuid {
 		return true, nil
 	}
+	dS.transId = transId
 	return false, nil
 }
 

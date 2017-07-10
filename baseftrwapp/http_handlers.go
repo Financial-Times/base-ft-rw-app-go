@@ -10,6 +10,7 @@ import (
 	"io"
 
 	"github.com/Financial-Times/neo-utils-go/neoutils"
+	"github.com/Financial-Times/transactionid-utils-go"
 	"github.com/Financial-Times/up-rw-app-api-go/rwapi"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
@@ -48,8 +49,9 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 		writeJSONError(w, fmt.Sprintf("uuid does not match: '%v' '%v'", docUUID, uuid), http.StatusBadRequest)
 		return
 	}
+	tid := transactionidutils.GetTransactionIDFromRequest(req)
 
-	err = hh.s.Write(inst)
+	err = hh.s.Write(inst, tid)
 
 	if err != nil {
 		switch e := err.(type) {
@@ -64,7 +66,7 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 			return
 		case rwapi.ConstraintOrTransactionError:
 			writeJSONError(w, e.Error(), http.StatusConflict)
-			return 
+			return
 		case invalidRequestError:
 			writeJSONError(w, e.InvalidRequestDetails(), http.StatusBadRequest)
 			return
@@ -75,18 +77,21 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	//Not necessary for a 200 to be returned, but for PUT requests, if don't specify, don't see 200 status logged in request logs
 	w.WriteHeader(http.StatusOK)
+	w.Header().Set("X-Request-Id", tid)
 }
 
 func (hh *httpHandlers) deleteHandler(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	uuid := vars["uuid"]
 
-	deleted, err := hh.s.Delete(uuid)
+	tid := transactionidutils.GetTransactionIDFromRequest(req)
+	deleted, err := hh.s.Delete(uuid, tid)
 
 	if err != nil {
 		writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
+	w.Header().Set("X-Request-Id", tid)
 
 	if deleted {
 		w.WriteHeader(http.StatusNoContent)
@@ -98,10 +103,12 @@ func (hh *httpHandlers) deleteHandler(w http.ResponseWriter, req *http.Request) 
 func (hh *httpHandlers) getHandler(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	uuid := vars["uuid"]
+	tid := transactionidutils.GetTransactionIDFromRequest(req)
 
-	obj, found, err := hh.s.Read(uuid)
+	obj, found, err := hh.s.Read(uuid, tid)
 
 	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("X-Request-Id", tid)
 
 	if err != nil {
 		writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
