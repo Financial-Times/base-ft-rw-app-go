@@ -53,8 +53,10 @@
 		{
 			"checksumSHA1": "diw1KueSVzsMHPCNDvj+xQiXSTE=",
 			"path": "github.com/Financial-Times/up-rw-app-api-go/rwapi",
-			"revision": "ab79b41e761f8de43f8a93f62bb0b8f21857f965",
-			"revisionTime": "2017-06-30T11:56:51Z"
+			"revision": "d9d93a1f689538313d12fee6f5f10715cfe280e0",
+			"revisionTime": "2017-07-10T12:58:28Z",
+			"version": "1.0.0",
+			"versionExact": "1.0.0"
 		},
 		{
 			"checksumSHA1": "9X1/hLR+WoHu3Vg6SDKF6W6Rjm4=",
