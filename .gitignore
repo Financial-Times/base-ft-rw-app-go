@@ -1,2 +1,3 @@
-base-ft-rw-app-go.exe
+base-ft-rw-app-go
 .idea/
+vendor/*/

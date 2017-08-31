@@ -11,10 +11,10 @@ import (
 	"github.com/Financial-Times/http-handlers-go/httphandlers"
 	"github.com/Financial-Times/service-status-go/gtg"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
-	log "github.com/Sirupsen/logrus"
 	graphite "github.com/cyberdelia/go-metrics-graphite"
 	"github.com/gorilla/mux"
 	metrics "github.com/rcrowley/go-metrics"
+	log "github.com/sirupsen/logrus"
 )
 
 type RWConf struct {
