@@ -30,7 +30,7 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Encoding") == "gzip" {
 		unzipped, err := gzip.NewReader(req.Body)
 		if err != nil {
-			writeJSONError(w, err.Error(), http.StatusBadRequest)
+			writeJSONMessage(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		defer unzipped.Close()
@@ -41,12 +41,12 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 	inst, docUUID, err := hh.s.DecodeJSON(dec)
 
 	if err != nil {
-		writeJSONError(w, err.Error(), http.StatusBadRequest)
+		writeJSONMessage(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	if docUUID != uuid {
-		writeJSONError(w, fmt.Sprintf("uuid does not match: '%v' '%v'", docUUID, uuid), http.StatusBadRequest)
+		writeJSONMessage(w, fmt.Sprintf("uuid does not match: '%v' '%v'", docUUID, uuid), http.StatusBadRequest)
 		return
 	}
 	tid := transactionidutils.GetTransactionIDFromRequest(req)
@@ -56,28 +56,28 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		switch e := err.(type) {
 		case noContentReturnedError:
-			writeJSONError(w, e.NoContentReturnedDetails(), http.StatusNoContent)
+			writeJSONMessage(w, e.NoContentReturnedDetails(), http.StatusNoContent)
 			return
 		case *neoutils.ConstraintViolationError:
 			// TODO: remove neo specific error check once all apps are
 			// updated to use neoutils.Connect() because that maps errors
 			// to rwapi.ConstraintOrTransactionError
-			writeJSONError(w, e.Error(), http.StatusConflict)
+			writeJSONMessage(w, e.Error(), http.StatusConflict)
 			return
 		case rwapi.ConstraintOrTransactionError:
-			writeJSONError(w, e.Error(), http.StatusConflict)
+			writeJSONMessage(w, e.Error(), http.StatusConflict)
 			return
 		case invalidRequestError:
-			writeJSONError(w, e.InvalidRequestDetails(), http.StatusBadRequest)
+			writeJSONMessage(w, e.InvalidRequestDetails(), http.StatusBadRequest)
 			return
 		default:
-			writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
+			writeJSONMessage(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
 	}
-	//Not necessary for a 200 to be returned, but for PUT requests, if don't specify, don't see 200 status logged in request logs
-	w.WriteHeader(http.StatusOK)
+
 	w.Header().Set("X-Request-Id", tid)
+	writeJSONMessage(w, "PUT successful", http.StatusOK)
 }
 
 func (hh *httpHandlers) deleteHandler(w http.ResponseWriter, req *http.Request) {
@@ -88,7 +88,7 @@ func (hh *httpHandlers) deleteHandler(w http.ResponseWriter, req *http.Request) 
 	deleted, err := hh.s.Delete(uuid, tid)
 
 	if err != nil {
-		writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
+		writeJSONMessage(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 	w.Header().Set("X-Request-Id", tid)
@@ -111,7 +111,7 @@ func (hh *httpHandlers) getHandler(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("X-Request-Id", tid)
 
 	if err != nil {
-		writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
+		writeJSONMessage(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 
@@ -122,7 +122,7 @@ func (hh *httpHandlers) getHandler(w http.ResponseWriter, req *http.Request) {
 
 	enc := json.NewEncoder(w)
 	if err := enc.Encode(obj); err != nil {
-		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		writeJSONMessage(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
@@ -134,14 +134,14 @@ func (hh *httpHandlers) countHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
 	if err != nil {
-		writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
+		writeJSONMessage(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 
 	enc := json.NewEncoder(w)
 
 	if err := enc.Encode(count); err != nil {
-		writeJSONError(w, err.Error(), http.StatusServiceUnavailable)
+		writeJSONMessage(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 }
@@ -193,7 +193,7 @@ func buildInfoHandler(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "build-info")
 }
 
-func writeJSONError(w http.ResponseWriter, errorMsg string, statusCode int) {
+func writeJSONMessage(w http.ResponseWriter, msg string, statusCode int) {
 	w.WriteHeader(statusCode)
-	fmt.Fprintln(w, fmt.Sprintf("{\"message\": \"%s\"}", errorMsg))
+	fmt.Fprint(w, fmt.Sprintf("{\"message\": \"%s\"}", msg))
 }

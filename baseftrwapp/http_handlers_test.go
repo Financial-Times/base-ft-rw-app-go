@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/Financial-Times/neo-utils-go/neoutils"
@@ -15,6 +16,7 @@ import (
 
 const knownUUID = "12345"
 
+var testAPIData = []byte(`swagger: "2.0"`)
 
 func TestPutHandler(t *testing.T) {
 	assert := assert.New(t)
@@ -26,16 +28,16 @@ func TestPutHandler(t *testing.T) {
 		contentType   string // Contents of the Content-Type header
 		body          string
 	}{
-		{"Success", newRequest("PUT", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID}), http.StatusOK, "", ""},
-		{"ParseError", newRequest("PUT", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failParse: true}), http.StatusBadRequest, "", errorMessage("TEST failing to DECODE")},
-		{"UUIDMisMatch", newRequest("PUT", fmt.Sprintf("/dummies/%s", "99999")), dummyServices(dummyService{uuid: knownUUID}), http.StatusBadRequest, "", errorMessage("uuid does not match: '12345' '99999'")},
-		{"WriteFailed", newRequest("PUT", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failWrite: true}), http.StatusServiceUnavailable, "", errorMessage("TEST failing to WRITE")},
-		{"WriteFailedDueToConflict", newRequest("PUT", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failConflict: true}), http.StatusConflict, "", errorMessage("Neo4j ConstraintViolation TEST failing to WRITE due to CONFLICT")},
+		{"Success", newRequest("PUT", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID}), http.StatusOK, "", jsonMessage("PUT successful")},
+		{"ParseError", newRequest("PUT", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failParse: true}), http.StatusBadRequest, "", jsonMessage("TEST failing to DECODE")},
+		{"UUIDMisMatch", newRequest("PUT", fmt.Sprintf("/dummies/%s", "99999")), dummyServices(dummyService{uuid: knownUUID}), http.StatusBadRequest, "", jsonMessage("uuid does not match: '12345' '99999'")},
+		{"WriteFailed", newRequest("PUT", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failWrite: true}), http.StatusServiceUnavailable, "", jsonMessage("TEST failing to WRITE")},
+		{"WriteFailedDueToConflict", newRequest("PUT", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failConflict: true}), http.StatusConflict, "", jsonMessage("Neo4j ConstraintViolation TEST failing to WRITE due to CONFLICT")},
 	}
 
 	for _, test := range tests {
 		rec := httptest.NewRecorder()
-		router(test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
+		router(testAPIData, test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
 		assert.Equal(test.statusCode, rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
 		assert.Equal(test.body, rec.Body.String(), fmt.Sprintf("%s: Wrong body", test.name))
 	}
@@ -53,12 +55,12 @@ func TestGetHandler(t *testing.T) {
 	}{
 		{"Success", newRequest("GET", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID}), http.StatusOK, "", "{}\n"},
 		{"NotFound", newRequest("GET", fmt.Sprintf("/dummies/%s", "99999")), dummyServices(dummyService{uuid: knownUUID}), http.StatusNotFound, "", ""},
-		{"ReadError", newRequest("GET", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failRead: true}), http.StatusServiceUnavailable, "", errorMessage("TEST failing to READ")},
+		{"ReadError", newRequest("GET", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failRead: true}), http.StatusServiceUnavailable, "", jsonMessage("TEST failing to READ")},
 	}
 
 	for _, test := range tests {
 		rec := httptest.NewRecorder()
-		router(test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
+		router(testAPIData, test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
 		assert.Equal(test.statusCode, rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
 		assert.Equal(test.body, rec.Body.String(), fmt.Sprintf("%s: Wrong body", test.name))
 	}
@@ -76,12 +78,12 @@ func TestDeleteHandler(t *testing.T) {
 	}{
 		{"Success", newRequest("DELETE", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID}), http.StatusNoContent, "", ""},
 		{"NotFound", newRequest("DELETE", fmt.Sprintf("/dummies/%s", "99999")), dummyServices(dummyService{uuid: knownUUID}), http.StatusNotFound, "", ""},
-		{"DeleteError", newRequest("DELETE", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failDelete: true}), http.StatusServiceUnavailable, "", errorMessage("TEST failing to DELETE")},
+		{"DeleteError", newRequest("DELETE", fmt.Sprintf("/dummies/%s", knownUUID)), dummyServices(dummyService{uuid: knownUUID, failDelete: true}), http.StatusServiceUnavailable, "", jsonMessage("TEST failing to DELETE")},
 	}
 
 	for _, test := range tests {
 		rec := httptest.NewRecorder()
-		router(test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
+		router(testAPIData, test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
 		assert.Equal(test.statusCode, rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
 		assert.Equal(test.body, rec.Body.String(), fmt.Sprintf("%s: Wrong body", test.name))
 	}
@@ -98,12 +100,12 @@ func TestCountHandler(t *testing.T) {
 		body          string
 	}{
 		{"Success", newRequest("GET", "/dummies/__count"), dummyServices(dummyService{uuid: knownUUID}), http.StatusOK, "", "2\n"},
-		{"CountError", newRequest("GET", "/dummies/__count"), dummyServices(dummyService{uuid: knownUUID, failCount: true}), http.StatusServiceUnavailable, "", errorMessage("TEST failing to COUNT")},
+		{"CountError", newRequest("GET", "/dummies/__count"), dummyServices(dummyService{uuid: knownUUID, failCount: true}), http.StatusServiceUnavailable, "", jsonMessage("TEST failing to COUNT")},
 	}
 
 	for _, test := range tests {
 		rec := httptest.NewRecorder()
-		router(test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
+		router(testAPIData, test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
 		assert.Equal(test.statusCode, rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
 		assert.Equal(test.body, rec.Body.String(), fmt.Sprintf("%s: Wrong body", test.name))
 	}
@@ -125,9 +127,33 @@ func TestGtgHandler(t *testing.T) {
 
 	for _, test := range tests {
 		rec := httptest.NewRecorder()
-		router(test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
+		router(testAPIData, test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
 		assert.Equal(test.statusCode, rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
 		assert.Equal(test.body, rec.Body.String(), fmt.Sprintf("%s: Wrong body", test.name))
+	}
+}
+
+func TestAPIHandler(t *testing.T) {
+	assert := assert.New(t)
+	tests := []struct {
+		name          string
+		req           *http.Request
+		dummyServices map[string]Service
+		apiData       []byte
+		statusCode    int
+		contentType   string // Contents of the Content-Type header
+		body          string
+	}{
+		{"Success", newRequest("GET", "/__api"), dummyServices(dummyService{failCheck: false}), testAPIData, http.StatusOK, "", `swagger: "2.0"`},
+		{"EmptyAPIArray", newRequest("GET", "/__api"), dummyServices(dummyService{failCheck: false}), []byte(``), http.StatusNotFound, "", "404 page not found"},
+		{"NilAPIArray", newRequest("GET", "/__api"), dummyServices(dummyService{failCheck: false}), nil, http.StatusNotFound, "", "404 page not found"},
+	}
+
+	for _, test := range tests {
+		rec := httptest.NewRecorder()
+		router(test.apiData, test.dummyServices, healthHandler).ServeHTTP(rec, test.req)
+		assert.Equal(test.statusCode, rec.Code, fmt.Sprintf("%s: Wrong response code, was %d, should be %d", test.name, rec.Code, test.statusCode))
+		assert.Equal(test.body, strings.TrimSpace(rec.Body.String()), fmt.Sprintf("%s: Wrong body", test.name))
 	}
 }
 
@@ -139,8 +165,8 @@ func newRequest(method, url string) *http.Request {
 	return req
 }
 
-func errorMessage(errMsg string) string {
-	return fmt.Sprintf("{\"message\": \"%s\"}\n", errMsg)
+func jsonMessage(msg string) string {
+	return fmt.Sprintf("{\"message\": \"%s\"}", msg)
 }
 
 func dummyServices(service Service) map[string]Service {
