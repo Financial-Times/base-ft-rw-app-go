@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	api "github.com/Financial-Times/api-endpoint"
 	"github.com/Financial-Times/http-handlers-go/httphandlers"
 	"github.com/Financial-Times/service-status-go/gtg"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
@@ -24,6 +25,7 @@ type RWConf struct {
 	ServiceName   string
 	Env           string
 	EnableReqLog  bool
+	OpenAPIData   []byte
 }
 
 // RunServer will set up GET, PUT and DELETE endpoints for the specified path,
@@ -65,7 +67,7 @@ func RunServerWithConf(conf RWConf) {
 	}
 
 	var m http.Handler
-	m = router(conf.Services, conf.HealthHandler)
+	m = router(conf.OpenAPIData, conf.Services, conf.HealthHandler)
 	if conf.EnableReqLog {
 		m = httphandlers.TransactionAwareRequestLoggingHandler(log.StandardLogger(), m)
 	}
@@ -79,7 +81,7 @@ func RunServerWithConf(conf RWConf) {
 }
 
 //Router sets up the Router - extracted for testability
-func router(services map[string]Service, healthHandler func(http.ResponseWriter, *http.Request)) *mux.Router {
+func router(apiData []byte, services map[string]Service, healthHandler func(http.ResponseWriter, *http.Request)) *mux.Router {
 	m := mux.NewRouter()
 
 	gtgChecker := make([]gtg.StatusChecker, 0)
@@ -98,6 +100,15 @@ func router(services map[string]Service, healthHandler func(http.ResponseWriter,
 
 			return gtg.Status{GoodToGo: true}
 		})
+	}
+
+	if apiData != nil && len(apiData) != 0 {
+		endpoint, err := api.NewAPIEndpointForYAML(apiData)
+		if err != nil {
+			log.Warn("Failed to serve API endpoint, please check whether the OpenAPI file is valid")
+		} else {
+			m.HandleFunc(api.DefaultPath, endpoint.ServeHTTP)
+		}
 	}
 
 	m.HandleFunc("/__health", healthHandler)
