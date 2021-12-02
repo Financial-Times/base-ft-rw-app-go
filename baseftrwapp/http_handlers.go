@@ -9,7 +9,6 @@ import (
 
 	"io"
 
-	"github.com/Financial-Times/neo-utils-go/neoutils"
 	"github.com/Financial-Times/transactionid-utils-go"
 	"github.com/Financial-Times/up-rw-app-api-go/rwapi"
 	"github.com/gorilla/mux"
@@ -57,12 +56,6 @@ func (hh *httpHandlers) putHandler(w http.ResponseWriter, req *http.Request) {
 		switch e := err.(type) {
 		case noContentReturnedError:
 			writeJSONMessage(w, e.NoContentReturnedDetails(), http.StatusNoContent)
-			return
-		case *neoutils.ConstraintViolationError:
-			// TODO: remove neo specific error check once all apps are
-			// updated to use neoutils.Connect() because that maps errors
-			// to rwapi.ConstraintOrTransactionError
-			writeJSONMessage(w, e.Error(), http.StatusConflict)
 			return
 		case rwapi.ConstraintOrTransactionError:
 			writeJSONMessage(w, e.Error(), http.StatusConflict)

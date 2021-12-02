@@ -5,7 +5,6 @@ go 1.17
 require (
 	github.com/Financial-Times/api-endpoint v0.0.0-20170612095945-d9f326a291cc
 	github.com/Financial-Times/http-handlers-go v0.0.0-20170809121007-229ac16f1d9e
-	github.com/Financial-Times/neo-utils-go v0.0.0-20181119150836-7fc6c3f7b78f
 	github.com/Financial-Times/service-status-go v0.0.0-20160323111542-3f5199736a3d
 	github.com/Financial-Times/transactionid-utils-go v0.2.0
 	github.com/Financial-Times/up-rw-app-api-go v0.0.0-20170710125828-d9d93a1f6895
@@ -14,7 +13,6 @@ require (
 	github.com/gorilla/context v1.1.1 // indirect
 	github.com/gorilla/mux v1.4.1-0.20170830053917-a659b61323b0
 	github.com/hashicorp/go-version v0.0.0-20170914154128-fc61389e27c7 // indirect
-	github.com/jmcvetta/neoism v1.3.1
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20161128210544-1f30fe9094a5
 	github.com/sirupsen/logrus v1.0.2-0.20170713114250-a3f95b5c4235
@@ -23,10 +21,4 @@ require (
 	golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v2 v2.2.2 // indirect
-	github.com/Financial-Times/go-logger v0.0.0-20180323124113-febee6537e90 // indirect
-	github.com/jmcvetta/randutil v0.0.0-20150817122601-2bb1b664bcff // indirect
-	github.com/kr/pretty v0.2.1 // indirect
-	github.com/kr/text v0.1.0 // indirect
-	go4.org v0.0.0-20201209231011-d4a079459e60 // indirect
-	gopkg.in/jmcvetta/napping.v3 v3.2.0 // indirect
 )
