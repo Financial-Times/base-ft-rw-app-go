@@ -1,4 +1,4 @@
-module github.com/Financial-Times/base-ft-rw-app-go
+module github.com/Financial-Times/base-ft-rw-app-go/v2
 
 go 1.17
 
