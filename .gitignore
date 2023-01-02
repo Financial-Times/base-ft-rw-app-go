@@ -1,4 +1,4 @@
 base-ft-rw-app-go
 base-ft-rw-app-go.exe
 .idea/
-vendor/*/
+vendor/*/.git/

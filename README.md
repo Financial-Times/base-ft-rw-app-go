@@ -14,3 +14,4 @@ TODO add lots more info!
 * Add a model for your service
 * Add a healthcheck for your service
 * Done!
+test
